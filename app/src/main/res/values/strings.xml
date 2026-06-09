@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Notification Fix</string>
+    <string name="permission_autostart">Autostart</string>
+    <string name="permission_battery">Battery Optimization</string>
+    <string name="permission_notification">Notifications</string>
+    <string name="permission_overlay">Display Over Other Apps</string>
+</resources>
