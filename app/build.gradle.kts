@@ -15,8 +15,18 @@ android {
         versionName = "1.0.3"
     }
 
+    signingConfigs {
+        release {
+            storeFile = file("release.keystore")
+            storePassword = System.getenv("STORE_PASSWORD") ?: ""
+            keyAlias = System.getenv("KEY_ALIAS") ?: "release"
+            keyPassword = System.getenv("KEY_PASSWORD") ?: ""
+        }
+    }
+
     buildTypes {
         release {
+            signingConfig = signingConfigs.release
             isMinifyEnabled = false
             isShrinkResources = false
         }
