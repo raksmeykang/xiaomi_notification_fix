@@ -1,1 +1,2 @@
 -keep class com.notificationfix.** { *; }
+-keep class * extends androidx.work.Worker { *; }

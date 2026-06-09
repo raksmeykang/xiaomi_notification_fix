@@ -12,7 +12,7 @@
         android:layout_height="44dp"
         android:textAllCaps="false"
         android:textSize="14sp"
-        app:icon="@android:drawable/ic_menu_manage"
+        app:icon="@android:drawable/ic_menu_edit"
         app:iconGravity="textStart" />
 
 </LinearLayout>
