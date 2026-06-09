@@ -5,6 +5,7 @@ import android.content.Intent
 import android.os.Build
 import android.os.Bundle
 import android.widget.Button
+import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
@@ -16,24 +17,20 @@ import kotlinx.coroutines.launch
 
 class MainActivity : AppCompatActivity() {
 
-    private lateinit var statusAutostart: TextView
-    private lateinit var statusBattery: TextView
     private lateinit var statusNotification: TextView
-    private lateinit var statusOverlay: TextView
+    private lateinit var statusBattery: TextView
     private lateinit var statusService: TextView
-    private lateinit var switchAutostart: SwitchMaterial
-    private lateinit var switchBattery: SwitchMaterial
     private lateinit var switchNotification: SwitchMaterial
-    private lateinit var switchOverlay: SwitchMaterial
+    private lateinit var switchBattery: SwitchMaterial
     private lateinit var switchService: SwitchMaterial
-    private lateinit var btnAutostart: Button
-    private lateinit var btnBattery: Button
     private lateinit var btnNotification: Button
-    private lateinit var btnOverlay: Button
+    private lateinit var btnBattery: Button
     private lateinit var btnBatterySaver: Button
+    private lateinit var btnDevOptions: Button
     private lateinit var btnStartService: Button
     private lateinit var btnRefresh: Button
     private lateinit var textDeviceInfo: TextView
+    private lateinit var appButtonsContainer: LinearLayout
 
     private val notificationPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -45,17 +42,14 @@ class MainActivity : AppCompatActivity() {
         ActivityResultContracts.StartActivityForResult()
     ) { updateAllStatuses() }
 
-    private val overlayPermissionLauncher = registerForActivityResult(
-        ActivityResultContracts.StartActivityForResult()
-    ) { updateAllStatuses() }
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
         initViews()
         setClickListeners()
-        updateDeviceInfo()
+        populateAppButtons()
+        textDeviceInfo.text = XiaomiUtils.getDeviceInfo()
         updateAllStatuses()
     }
 
@@ -65,110 +59,76 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun initViews() {
-        statusAutostart = findViewById(R.id.status_autostart)
-        statusBattery = findViewById(R.id.status_battery)
         statusNotification = findViewById(R.id.status_notification)
-        statusOverlay = findViewById(R.id.status_overlay)
+        statusBattery = findViewById(R.id.status_battery)
         statusService = findViewById(R.id.status_service)
-        switchAutostart = findViewById(R.id.switch_autostart)
-        switchBattery = findViewById(R.id.switch_battery)
         switchNotification = findViewById(R.id.switch_notification)
-        switchOverlay = findViewById(R.id.switch_overlay)
+        switchBattery = findViewById(R.id.switch_battery)
         switchService = findViewById(R.id.switch_service)
-        btnAutostart = findViewById(R.id.btn_autostart)
-        btnBattery = findViewById(R.id.btn_battery)
         btnNotification = findViewById(R.id.btn_notification)
-        btnOverlay = findViewById(R.id.btn_overlay)
+        btnBattery = findViewById(R.id.btn_battery)
         btnBatterySaver = findViewById(R.id.btn_battery_saver)
+        btnDevOptions = findViewById(R.id.btn_dev_options)
         btnStartService = findViewById(R.id.btn_start_service)
         btnRefresh = findViewById(R.id.btn_refresh)
         textDeviceInfo = findViewById(R.id.text_device_info)
+        appButtonsContainer = findViewById(R.id.app_buttons_container)
     }
 
     private fun setClickListeners() {
-        btnAutostart.setOnClickListener {
-            XiaomiUtils.openAutostartSettings(this)
-            lifecycleScope.launch {
-                delay(1500)
-                updateAllStatuses()
-            }
-        }
-        btnBattery.setOnClickListener {
-            XiaomiUtils.openBatteryOptimizationSettings(this)
-        }
         btnNotification.setOnClickListener {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                 if (PermissionHelper.hasNotificationPermission(this)) {
-                    XiaomiUtils.openNotificationSettings(this)
+                    XiaomiUtils.openNotificationSettings(this, packageName)
                 } else {
                     notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
                 }
             } else {
-                XiaomiUtils.openNotificationSettings(this)
+                XiaomiUtils.openNotificationSettings(this, packageName)
             }
         }
-        btnOverlay.setOnClickListener {
-            XiaomiUtils.openOverlayPermissionSettings(this)
+        btnBattery.setOnClickListener {
+            XiaomiUtils.openBatteryOptimizationSettings(this, packageName)
         }
-        btnBatterySaver.setOnClickListener {
-            XiaomiUtils.openBatterySaverSettings(this)
-        }
-        btnStartService.setOnClickListener {
-            toggleService()
-        }
+        btnBatterySaver.setOnClickListener { XiaomiUtils.openBatterySaverSettings(this) }
+        btnDevOptions.setOnClickListener { XiaomiUtils.openDeveloperOptions(this) }
+        btnStartService.setOnClickListener { toggleService() }
         btnRefresh.setOnClickListener { updateAllStatuses() }
     }
 
-    private fun updateDeviceInfo() {
-        val device = "${Build.MANUFACTURER} ${Build.MODEL}"
-        val os = "Android ${Build.VERSION.RELEASE} (API ${Build.VERSION.SDK_INT})"
-        val miui = XiaomiUtils.getMIUIVersion()
-        val info = buildString {
-            append(device)
-            append("\n$os")
-            if (miui.isNotEmpty()) append("\n$miui")
+    private fun populateAppButtons() {
+        val inflater = layoutInflater
+        for (app in XiaomiUtils.COMMON_APPS) {
+            val row = inflater.inflate(R.layout.item_app_config, appButtonsContainer, false)
+            val btn = row.findViewById<Button>(R.id.btn_app_config)
+            btn.text = app.name
+            btn.setOnClickListener {
+                XiaomiUtils.openAppSettings(this, app.packageName)
+            }
+            appButtonsContainer.addView(row)
         }
-        textDeviceInfo.text = info
     }
 
     private fun updateAllStatuses() {
-        updateAutostartStatus()
-        updateBatteryStatus()
         updateNotificationStatus(PermissionHelper.hasNotificationPermission(this))
-        updateOverlayStatus()
+        updateBatteryStatus()
         updateServiceStatus()
     }
 
-    private fun updateAutostartStatus() {
-        val enabled = XiaomiUtils.isXiaomi()
-        statusAutostart.text = if (enabled) {
-            "Open autostart settings (check manually)"
-        } else {
-            "Not required on this device"
-        }
-        switchAutostart.isChecked = enabled
+    private fun updateNotificationStatus(granted: Boolean) {
+        statusNotification.text = if (granted) "Granted" else "Not granted"
+        switchNotification.isChecked = granted
     }
 
     private fun updateBatteryStatus() {
         val exempt = PermissionHelper.hasBatteryExemption(this)
-        statusBattery.text = if (exempt) "Battery optimization disabled" else "Battery optimization active"
+        statusBattery.text = if (exempt) "No restrictions" else "Optimizing battery"
         switchBattery.isChecked = exempt
-    }
-
-    private fun updateNotificationStatus(granted: Boolean) {
-        statusNotification.text = if (granted) "Notification permission granted" else "Notification permission not granted"
-        switchNotification.isChecked = granted
-    }
-
-    private fun updateOverlayStatus() {
-        val granted = PermissionHelper.hasOverlayPermission(this)
-        statusOverlay.text = if (granted) "Overlay permission granted" else "Overlay permission not granted"
-        switchOverlay.isChecked = granted
     }
 
     private fun updateServiceStatus() {
         val running = isServiceRunning(NotificationFixService::class.java)
-        statusService.text = if (running) "Background service running" else "Background service stopped"
+        statusService.text = if (running) "Running + alarms active" else "Stopped"
         switchService.isChecked = running
     }
 
@@ -184,16 +144,21 @@ class MainActivity : AppCompatActivity() {
         val intent = Intent(this, NotificationFixService::class.java)
         if (isServiceRunning(NotificationFixService::class.java)) {
             stopService(intent)
+            KeepAliveWorker.cancel(this)
+            AlarmReceiver.cancelAlarm(this)
+            Toast.makeText(this, "Service stopped", Toast.LENGTH_SHORT).show()
         } else {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
                 !PermissionHelper.hasNotificationPermission(this)
             ) {
-                Toast.makeText(this, "Please grant notification permission first", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, "Grant notification permission first", Toast.LENGTH_SHORT).show()
                 notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
                 return
             }
             startForegroundService(intent)
-            Toast.makeText(this, "Service started", Toast.LENGTH_SHORT).show()
+            KeepAliveWorker.schedule(this)
+            AlarmReceiver.scheduleAlarm(this)
+            Toast.makeText(this, "Service started — notifications should arrive now", Toast.LENGTH_LONG).show()
         }
         lifecycleScope.launch {
             delay(500)

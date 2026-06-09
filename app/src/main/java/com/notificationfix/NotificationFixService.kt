@@ -13,19 +13,26 @@ class NotificationFixService : Service() {
     companion object {
         private const val CHANNEL_ID = "notification_fix_channel"
         private const val NOTIFICATION_ID = 1001
-        private const val CHANNEL_NAME = "Notification Monitor"
-        private const val CHANNEL_DESC = "Keeps notification monitoring active"
     }
 
     override fun onCreate() {
         super.onCreate()
         createNotificationChannel()
+        KeepAliveWorker.schedule(this)
+        AlarmReceiver.scheduleAlarm(this)
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         val notification = buildNotification()
         startForeground(NOTIFICATION_ID, notification)
+        KeepAliveWorker.enqueueOneTime(this)
         return START_STICKY
+    }
+
+    override fun onDestroy() {
+        KeepAliveWorker.cancel(this)
+        AlarmReceiver.cancelAlarm(this)
+        super.onDestroy()
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
@@ -33,10 +40,10 @@ class NotificationFixService : Service() {
     private fun createNotificationChannel() {
         val channel = NotificationChannel(
             CHANNEL_ID,
-            CHANNEL_NAME,
+            "Notification Fix",
             NotificationManager.IMPORTANCE_LOW
         ).apply {
-            description = CHANNEL_DESC
+            description = "Prevents device deep doze for notification delivery"
             setShowBadge(false)
         }
         val manager = getSystemService(NotificationManager::class.java)
@@ -46,7 +53,7 @@ class NotificationFixService : Service() {
     private fun buildNotification(): Notification {
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle("Notification Fix Active")
-            .setContentText("Monitoring notification delivery")
+            .setContentText("Keeping device awake for notifications")
             .setSmallIcon(android.R.drawable.ic_popup_reminder)
             .setOngoing(true)
             .setSilent(true)
