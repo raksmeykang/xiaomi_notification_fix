@@ -54,7 +54,7 @@ class NotificationFixService : Service() {
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle("Notification Fix Active")
             .setContentText("Keeping device awake for notifications")
-            .setSmallIcon(android.R.drawable.ic_popup_reminder)
+            .setSmallIcon(R.drawable.ic_notification)
             .setOngoing(true)
             .setSilent(true)
             .build()
